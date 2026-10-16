@@ -1,6 +1,7 @@
 배경 지식: 왜 Python으로 공격하나?
 
 Arduino의 시리얼 포트는 PC에서 보면 그냥 COM 포트(Windows) 또는 /dev/ttyUSB0(Linux/Mac)예요. Python의 pyserial 라이브러리로 이 포트에 문자열을 보내면 Arduino가 명령으로 읽어요.
+replay attack을 자동화로 재현하고 측정해보기
 
 bash
 # Python 환경 준비
