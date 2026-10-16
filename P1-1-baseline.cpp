@@ -18,7 +18,7 @@ uint8_t inputLength = 0;
 bool inputOverflow = false;
 
 void timer1_iv(){
-	TCCR1A = 0;
+	TCCR1A = 0; // normal counter mode, not PWM
 	TCCR1B = (1 << CS10); // prescaler = 1, 분주 없음
 						// TCCR1B의 CS10 비트만 세우면 prescaler = 1
 						// 1 tick of the Timer1 = 62.5 nanoseconds; max = 6.25 ns * 65535 = 4.096 ms
@@ -27,8 +27,8 @@ void timer1_iv(){
 } // initialize Timer1
 // use Timer1 instead of using micros() function; micros() has approximately 4 micros resolution.
 
-inline float tToMicros(uint16_t t_start, uint16_t t_end){
-	return (uint16_t)(t_end - t_start) * 0.0625f;
+double tToMicros(uint16_t t_start, uint16_t t_end){
+	return (uint16_t)(t_end - t_start) * 0.0625;
 } // change ns to ms; 62.5ns = 0.0625ms
 // overflow 처리: uint16_t subtraction provides automatic wrap-around
 
@@ -41,12 +41,12 @@ void two_lineLCD(const char* line1, const char* line2){
   lcd.print(line2);
 }
 
-int lockedOut_check(bool lockedOut){
+void lockedOut_check(){
   if(lockedOut){
     two_lineLCD("REJECTED", "Reset needed");
     Serial.println("REJECTED \n");
     Serial.println("Locked Out, Reset needed \n");
-    return 0;
+    return;
   } // once input is locked, reject all further input until reset is done
   else {
     uint8_t remain = MAX_ATTEMPTS - failedATTEMPTS;
@@ -58,24 +58,30 @@ int lockedOut_check(bool lockedOut){
     Serial.println("WRONG PASSWORD \n");
     Serial.println(remain);
     Serial.println(" chances left \n");
-    return 0;
+    return;
   }
 }
 
-void command(const char* input, bool lockedOut){  
+void command(const char* input){  
+  if (lockedOut){
+	  two_lineLCD("REJECTED", "Reset needed");
+	  Serial.println("REJECTED \n");
+	  Serial.println("LockedOUT mode, device is locked");
+	  return;
+  }
   uint16_t t0 = TCNT1; // start the timer t0 after the full input has been received.
   								
   bool accepted = (strcmp(input, PASSWORD) == 0); //strcmp: compare two strings - need string library, 스트링 라이브러리 없이도 할 수 있을까?
   uint16_t t1 = TCNT1; // T_proc timer finish!
 
-  float T_proc = tToMicros(t0, t1);
+  double T_proc = tToMicros(t0, t1);
   
   if(accepted){
     uint16_t t2 = TCNT1; // start the timer for T_act
     myServo.write(90);
 	uint16_t t3 = TCNT1; // T_act timer finished
 
-    float T_act = tToMicros(t2, t3);
+    double T_act = tToMicros(t2, t3);
     
     two_lineLCD("ACCEPTED", "Access granted!");
     Serial.println("ACCEPTED \nAccess granted! \n");
@@ -88,18 +94,17 @@ void command(const char* input, bool lockedOut){
 	Serial.print(T_act);
 	Serial.print(" micro seconds \n");
   } // baseline accepts the same password repeatedly
-  else{
+	else {
     failedATTEMPTS++;
-    if(failedATTEMPTS >= MAX_ATTEMPTS) lockedOut = true
-	
-	lockedOut_check(lockedOut);
-   }
+    if(failedATTEMPTS >= MAX_ATTEMPTS) lockedOut = true;
+	lockedOut_check();
 
 	Serial.print("T_proc: ");
-	Serial.print(t1-t0);
+	Serial.print(T_proc);
 	Serial.print(" micro seconds \n");
  	// timing output is printed after
 	//since it is rejected, T_act, the time calculating how long it takes for the Actuation command to be sent, is not printed
+	}
 } // caleed when a complete Serial line is received
 
 
@@ -122,13 +127,13 @@ void loop(){
     
     if(c == '\n'){
       if(inputOverflow){
-        two_lineLCD("PASSWORD too long", "Overflow");
+        two_lineLCD("PASSWORD too long", "Try again");
         Serial.println("PASSWORD too long, Overflow occurred \n");
-        // 다시 입력 화면으로 돌아가게
-      } // check overflow
+		Serial.println("Try again: ");
+      } // check overflow, if 조건문을 나가 initialize 후 while loop 다시 시작해 입력 다시 시작
       else if(inputLength > 0){
         inputBuffer[inputLength] = '\0';
-        command(inputBuffer, false);
+        command(inputBuffer);
       }
       
       inputLength = 0;
@@ -136,10 +141,12 @@ void loop(){
     }
     else{
       if(!inputOverflow) {
-        if(inputLength < sizeof(inputBuffer) - 1) inputBuffer[inputLength++] = c;  // continue writing password
-        
-        inputOverflow = true; //enter를 치는 순간 오버플로우 발생했다는 오류 메세지 풀력
-      }
+        if(inputLength < sizeof(inputBuffer) - 1){
+			inputBuffer[inputLength++] = c;  // continue writing password
+		} else {
+        inputOverflow = true; //enter를 치는 순간 오버플로우 발생했다는 오류 메세지 출력, 버퍼가 꽉 찼을 때만 true
+      	}
+	  }
     }
   } // writing input without blocking for a newline
 
