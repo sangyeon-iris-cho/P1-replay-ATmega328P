@@ -52,6 +52,7 @@ void EEPROM_Seq_W(uint16_t seq){
 	uint8_t hi = (seq >> 8) & 0xFF;
 
 	EEPROM.update(EEPROM_ADDR_SEQ, lo); // use update instead of write to save the 횟수 of writing into EEPROM
+										// additionally, EEPROM.update() function has a void type return
 	EEPROM.update(EEPROM_ADDR_SEQ + 1, hi);
 } // update the EEPROM, to 수명 절약, 값이 같으면 쓰지 않음
 
