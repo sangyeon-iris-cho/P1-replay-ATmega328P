@@ -58,7 +58,7 @@ bool parseSeq(const char* s, uint16_t* out){
   }
     
   long val = atol(s); // ASCII to long type variable, so no worries for overflow
-  if(val < 0 || val > 65535) return false; //65535 is a number
+  if(val < 0 || val > 65535) return false; //65535 is the max number within uint16_t = 2^16 - 1 = 65535 = 0xFFFF
 
   *out = (uint16_t)val;
   return true;
