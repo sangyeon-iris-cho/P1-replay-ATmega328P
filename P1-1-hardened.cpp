@@ -124,13 +124,24 @@ void command(const char* input){
   int8_t result = validate(input, &T_proc, &seqReceived);
 
   if(result == 0){
+    uint16_t t2 = TCNT1; // start the timer for T_act
+    myServo.write(90);
+	  uint16_t t3 = TCNT1; // T_act timer finished
+
+    double T_act = tToMicros(t2, t3);
     
-    
-    // right password! accepted
+    two_lineLCD("ACCEPTED", "Access granted!");
+    Serial.println("ACCEPTED \nAccess granted! \n");
+	  Serial.print("T_proc: ");
+	  Serial.print(T_proc);
+  	Serial.print(" micro seconds \n");
+	  Serial.print("T_act: ");
+	  Serial.print(T_act);
+	  Serial.print(" micro seconds \n");
 
     SeqNext++;
     EEPROMdirty = true;
-  }
+  } // right password! accepted
   else if(result == -10) {
     // locked out
   }
