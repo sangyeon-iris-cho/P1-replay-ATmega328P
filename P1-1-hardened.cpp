@@ -54,7 +54,7 @@ void buzz_RA(){
 }
 void buzz_lockedOut(){
 	tone(BPIN, 300, 2000); // a low toned noise, for a long time
-	delay(200);
+	delay(2200); //delay time(ms) must be longer than the buzzer's ring time. it starts from the start of the function buzz_lockedOut
 }
 
 uint16_t EEPROM_Seq_R(){
@@ -189,18 +189,24 @@ void command(const char* input){
     Serial.println(" micro seconds. \n");
 
     failedATTEMPTS++;
-    if(failedATTEMPTS >= MAX_ATTEMPTS) lockedOut = true;
+    if(failedATTEMPTS >= MAX_ATTEMPTS){
+		lockedOut = true;
+		buzz_lockedOut();
+	}
   }
   else{
     if(result == -1){
 	  buzz_REJECT();
-      two_lineLCD("PASS FORMAT ERROR", "Use colon between");
+      two_lineLCD("FORMAT ERROR", "Use colon between");
       Serial.println("PASSWORD'S FORMAT IS: PASSWORD:SEQ\n");
     }
     else{ // result == -2 || == -3; overflow / wrong password typed
 	  buzz_REJECT();
       failedATTEMPTS++;
-      if(failedATTEMPTS >= MAX_ATTEMPTS) lockedOut = true;
+      if(failedATTEMPTS >= MAX_ATTEMPTS){
+		  lockedOut = true;
+		  buzz_lockedOut();
+	  }
 	  lockedOut_check();
 		
       Serial.print("T_proc: ");
@@ -243,7 +249,7 @@ void loop(){
 
     if(c == '\n'){
       if(inputOverflow){
-		two_lineLCD("PASSWORD too long", "Try again");
+		two_lineLCD("PASS too long", "Try again");
         Serial.println("PASSWORD too long, Overflow occurred \n");
 		Serial.println("Try again: ");
       }
