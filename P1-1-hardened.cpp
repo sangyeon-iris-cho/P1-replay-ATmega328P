@@ -9,8 +9,7 @@ Servo myServo;
 
 const char PASS[] = "123456789";
 const uint8_t MAX_ATTEMPTS = 5;
-const uint16_t EEPROM_ADDR_SEQ = 0; //EEPROM address that's used to be written / save values inside.
-									//0, 1, 2 byte of EEPROM is used for sequence number
+const uint16_t EEPROM_ADDR_SEQ = 0; //EEPROM address: 0, 1(2bytes) are used to be written / save sequence numbers inside.
 
 uint8_t failedATTEMPTS = 0;
 bool lockedOut = false;
@@ -173,10 +172,11 @@ void command(const char* input){
     EEPROMdirty = true;
   } // right password! accepted
   else if(result == -10) {
-	lockedOut_check(); // locked out
 	buzz_lockedOut();
+	lockedOut_check(); // locked out
   }
   else if(result == -100){ // replay-attack detected!
+	buzz_RA();
     two_lineLCD("REPLAY-ATTACK!", "SEQ mismatch");
     Serial.print("REPLAY-ATTACK DETECTED! \n");
     Serial.print("Expected Sequence Number was: ");
@@ -188,26 +188,24 @@ void command(const char* input){
     Serial.print(T_proc);
     Serial.println(" micro seconds. \n");
 
-	buzz_RA();
     failedATTEMPTS++;
     if(failedATTEMPTS >= MAX_ATTEMPTS) lockedOut = true;
   }
   else{
     if(result == -1){
+	  buzz_REJECT();
       two_lineLCD("PASS FORMAT ERROR", "Use colon between");
       Serial.println("PASSWORD'S FORMAT IS: PASSWORD:SEQ\n");
-
-	  buzz_REJECT();
     }
     else{ // result == -2 || == -3; overflow / wrong password typed
+	  buzz_REJECT();
       failedATTEMPTS++;
       if(failedATTEMPTS >= MAX_ATTEMPTS) lockedOut = true;
 	  lockedOut_check();
+		
       Serial.print("T_proc: ");
       Serial.print(T_proc);
       Serial.println(" micro seconds. \n");
-
-	  buzz_REJECT();
     }
   }
 }
