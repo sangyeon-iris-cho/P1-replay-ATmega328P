@@ -220,7 +220,9 @@ void loop(){
 
     if(c == '\n'){
       if(inputOverflow){
-		  오버플로우
+		two_lineLCD("PASSWORD too long", "Try again");
+        Serial.println("PASSWORD too long, Overflow occurred \n");
+		Serial.println("Try again: ");
       }
       else if(inputLength > 0){
         inputBuffer[inputLength] = '\0';
