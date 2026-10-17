@@ -40,6 +40,24 @@ void two_lineLCD(const char* line1, const char* line2){
   lcd.print(line2);
 }
 
+const uint8_t BPIN = 8; // active buzzer is connected to the 8th pin of arduino
+void buzz_REJECT(){
+	for(int i = 0; i<2; i++){
+		tone(BPIN, 2000, 100); // 2000Hz, a high toned noise, for 100milliseconds
+		delay(200); // stop for 200ms
+	}
+}
+void buzz_RA(){
+	for(int i = 0; i<3; i++){
+		tone(BPIN, 500, 150); // 500Hz, a way lower toned noise, for 150milliseconds
+		delay(200);
+	}
+}
+void buzz_lockedOut(){
+	tone(BPIN, 300, 2000); // a low toned noise, for a long time
+	delay(200);
+}
+
 uint16_t EEPROM_Seq_R(){
 	uint8_t lo = EEPROM.read(EEPROM_ADDR_SEQ); // EEPROM[0]
 	uint8_t hi = EEPROM.read(EEPROM_ADDR_SEQ + 1); // EEPROM[1]
@@ -156,6 +174,7 @@ void command(const char* input){
   } // right password! accepted
   else if(result == -10) {
 	lockedOut_check(); // locked out
+	buzz_lockedOut();
   }
   else if(result == -100){ // replay-attack detected!
     two_lineLCD("REPLAY-ATTACK!", "SEQ mismatch");
@@ -168,7 +187,8 @@ void command(const char* input){
     Serial.print("\n\nT_proc: ");
     Serial.print(T_proc);
     Serial.println(" micro seconds. \n");
-    
+
+	buzz_RA();
     failedATTEMPTS++;
     if(failedATTEMPTS >= MAX_ATTEMPTS) lockedOut = true;
   }
@@ -176,6 +196,8 @@ void command(const char* input){
     if(result == -1){
       two_lineLCD("PASS FORMAT ERROR", "Use colon between");
       Serial.println("PASSWORD'S FORMAT IS: PASSWORD:SEQ\n");
+
+	  buzz_REJECT();
     }
     else{ // result == -2 || == -3; overflow / wrong password typed
       failedATTEMPTS++;
@@ -184,6 +206,8 @@ void command(const char* input){
       Serial.print("T_proc: ");
       Serial.print(T_proc);
       Serial.println(" micro seconds. \n");
+
+	  buzz_REJECT();
     }
   }
 }
