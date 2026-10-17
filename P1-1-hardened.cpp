@@ -1,4 +1,4 @@
-#include <avr/eeprom.h>
+#include <EEPROM.h>
 #include <LiquidCrystal.h>
 #include <Servo.h>
 #include <string.h>
@@ -9,8 +9,8 @@ Servo myServo;
 
 const char PASS[] = "123456789";
 const uint8_t MAX_ATTEMPTS = 5;
-const uint16_t EEPROM_ADDR_SEQ = 0; //EEPROM address to be written, saved
-const uint16_t SEQ_W = 1; // saved everytime there's an input
+const uint16_t EEPROM_ADDR_SEQ = 0; //EEPROM address that's used to be written / save values inside.
+									//0, 1, 2 byte of EEPROM is used for sequence number
 
 uint8_t failedATTEMPTS = 0;
 bool lockedOut = false;
@@ -41,10 +41,18 @@ void two_lineLCD(const char* line1, const char* line2){
 }
 
 uint16_t EEPROM_Seq_R(){
-  return EEPROM_PASS_R((uint16_t*)EEPROM_ADDR_SEQ);
+	uint8_t lo = EEPROM.read(EEPROM_ADDR_SEQ); // EEPROM[0]
+	uint8_t hi = EEPROM.read(EEPROM_ADDR_SEQ + 1); // EEPROM[1]
+	// since EEPROM.h's unit is per 1 byte, need to use uint16_t twice to Read & Write
+	return ((uint16_t)hi << 8) | lo;
 } // inside EEPROM memory, read the sequence number
-uint16_t EEPROM_Seq_W(uint16_t seq){
-  return EEPROM_PASS_Update((uint16_t)*EEPROM_ADDR_SEQ);
+
+void EEPROM_Seq_W(uint16_t seq){
+	uint8_t lo = seq & 0xFF; // low 8 bits
+	uint8_t hi = (seq >> 8) & 0xFF;
+
+	EEPROM.update(EEPROM_ADDR_SEQ, lo); // use update instead of write to save the 횟수 of writing into EEPROM
+	EEPROM.update(EEPROM_ADDR_SEQ + 1, hi);
 } // update the EEPROM, to 수명 절약, 값이 같으면 쓰지 않음
 
 bool parseSeq(const char* s, uint16_t* out){
@@ -54,12 +62,12 @@ bool parseSeq(const char* s, uint16_t* out){
 
   for(uint8_t i = 0; s[i] != '\0'; i++){
      if(s[i] < '0' || s[i] > '9') return false; // only for valid numbers, no 특수문자 or alphabets, etc within
-     if(i>5) return false; // since 65535 is 5 digits.
+     if(i>5) return false; // since 65535, the max number that can be expressed for uint16_t = 2^16 - 1 is 5 digits.
   }
     
   long val = atol(s); // ASCII to long type variable, so no worries for overflow
-  if(val < 0 || val > 65535) return false; //65535 is the max number within uint16_t = 2^16 - 1 = 65535 = 0xFFFF
-
+  if(val < 0 || val > 65535) return false;
+	
   *out = (uint16_t)val;
   return true;
 } // parsing function instead of atio - uint16_t seqReceived = (uint16_t)atoi(seqLength);
@@ -101,7 +109,7 @@ int8_t validate(const char* input, double* out_T_proc, uint16_t* out_Seq_receive
   const char* seqLength = colon + 1; // the sequence number part, after the colon :
 
   uint16_t seqReceived = 0;
-  if(!parseSeq(seqStr, &seqReceived)) return -1; // format error, no negative number
+  if(!parseSeq(seqLength, &seqReceived)) return -1; // format error, no negative number
   *out_Seq_received = seqReceived;
 
   uint16_t t0 = TCNT1; // Timer1 start!
@@ -139,6 +147,9 @@ void command(const char* input){
 	Serial.print(T_act);
 	Serial.print(" micro seconds \n");
 
+	Serial.print("SEQ number accepted for this input: ");
+	Serial.println(seqReceived);
+
     SeqNext++;
     EEPROMdirty = true;
   } // right password! accepted
@@ -146,9 +157,9 @@ void command(const char* input){
 	lockedOut_check(); // locked out
   }
   else if(result == -100){ // replay-attack detected!
-    two_lineLCD("REPLAY-ATTACK!", "SEQ different");
+    two_lineLCD("REPLAY-ATTACK!", "SEQ mismatch");
     Serial.print("REPLAY-ATTACK DETECTED! \n");
-    Serial.print("Expected Sequence Number is: ");
+    Serial.print("Expected Sequence Number was: ");
     Serial.print(SeqNext);
     Serial.print(" , while current Sequence Number is: ");
     Serial.println(seqReceived);
@@ -165,7 +176,7 @@ void command(const char* input){
       two_lineLCD("PASS FORMAT ERROR", "Use colon between");
       Serial.println("PASSWORD'S FORMAT IS: PASSWORD:SEQ\n");
     }
-    else{ // result == -2 || == -3; where overflow / wrong password typed
+    else{ // result == -2 || == -3; overflow / wrong password typed
       failedATTEMPTS++;
       if(failedATTEMPTS >= MAX_ATTEMPTS) lockedOut = true;
 	  lockedOut_check();
@@ -193,6 +204,8 @@ void setup(){
   myServo.attach(9);
   myServo.write(0);
   Serial.println("hardened Firmware Ready. \n"); //Timer1 started
+  Serial.print("The Next Sequence Number is: "); Serial.println(SeqNext);
+  Serial.println("FORMAT: PASS:SEQ");
   Serial.println("Please Enter the PASSWORD: ");
 }
 
@@ -207,7 +220,7 @@ void loop(){
 
     if(c == '\n'){
       if(inputOverflow){
-        two_lineLCD()
+		  오버플로우
       }
       else if(inputLength > 0){
         inputBuffer[inputLength] = '\0';
