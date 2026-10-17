@@ -126,24 +126,24 @@ void command(const char* input){
   if(result == 0){
     uint16_t t2 = TCNT1; // start the timer for T_act
     myServo.write(90);
-	  uint16_t t3 = TCNT1; // T_act timer finished
+	uint16_t t3 = TCNT1; // T_act timer finished
 
     double T_act = tToMicros(t2, t3);
     
     two_lineLCD("ACCEPTED", "Access granted!");
     Serial.println("ACCEPTED \nAccess granted! \n");
-	  Serial.print("T_proc: ");
-	  Serial.print(T_proc);
+	Serial.print("T_proc: ");
+	Serial.print(T_proc);
   	Serial.print(" micro seconds \n");
-	  Serial.print("T_act: ");
-	  Serial.print(T_act);
-	  Serial.print(" micro seconds \n");
+	Serial.print("T_act: ");
+	Serial.print(T_act);
+	Serial.print(" micro seconds \n");
 
     SeqNext++;
     EEPROMdirty = true;
   } // right password! accepted
   else if(result == -10) {
-    // locked out
+	lockedOut_check(); // locked out
   }
   else if(result == -100){ // replay-attack detected!
     two_lineLCD("REPLAY-ATTACK!", "SEQ different");
@@ -168,7 +168,7 @@ void command(const char* input){
     else{ // result == -2 || == -3; where overflow / wrong password typed
       failedATTEMPTS++;
       if(failedATTEMPTS >= MAX_ATTEMPTS) lockedOut = true;
-      lockedOut 함수
+	  lockedOut_check();
       Serial.print("T_proc: ");
       Serial.print(T_proc);
       Serial.println(" micro seconds. \n");
