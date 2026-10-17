@@ -192,9 +192,8 @@ void setup(){
 
   myServo.attach(9);
   myServo.write(0);
-
-  레디
-  
+  Serial.println("hardened Firmware Ready. \n"); //Timer1 started
+  Serial.println("Please Enter the PASSWORD: ");
 }
 
 void loop(){
