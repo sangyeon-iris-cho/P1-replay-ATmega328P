@@ -47,7 +47,25 @@ uint16_t EEPROM_Seq_W(uint16_t seq){
   return EEPROM_PASS_Update((uint16_t)*EEPROM_ADDR_SEQ);
 } // update the EEPROM, to 수명 절약, 값이 같으면 쓰지 않음
 
+bool parseSeq(const char* s, uint16_t* out){
+  if(s == NULL || s[0] == '\0') return false; // no parsing for empty char array
+
+  if(s[0] == '-') return false; // reject negative value
+
+  for(uint8_t i = 0; s[i] != '\0'; i++){
+     if(s[i] < '0' || s[i] > '9') return false; // only for valid numbers, no 특수문자 or alphabets, etc within
+     if(i>5) return false; // since 65535 is 5 digits.
+  }
+    
+  long val = atol(s); // ASCII to long type variable, so no worries for overflow
+  if(val < 0 || val > 65535) return false; //65535 is a number
+
+  *out = (uint16_t)val;
+  return true;
+} // parsing function instead of atio - uint16_t seqReceived = (uint16_t)atoi(seqLength);
+  
 lockedOut function
+
 
 
 int8_t validate(const char* input, double* out_T_proc, uint16_t* out_Seq_received){
@@ -64,7 +82,9 @@ int8_t validate(const char* input, double* out_T_proc, uint16_t* out_Seq_receive
   PW[PWLength] = '\0';
 
   const char* seqLength = colon + 1; // the sequence number part, after the colon :
-  uint16_t seqReceived = (uint16_t)atoi(seqLength);
+
+  uint16_t seqReceived = 0;
+  if(!parseSeq(seqStr, &seqReceived)) return -1; // format error, no negative number
   *out_Seq_received = seqReceived;
 
   uint16_t t0 = TCNT1; // Timer1 start!
