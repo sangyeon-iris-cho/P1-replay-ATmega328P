@@ -64,9 +64,26 @@ bool parseSeq(const char* s, uint16_t* out){
   return true;
 } // parsing function instead of atio - uint16_t seqReceived = (uint16_t)atoi(seqLength);
   
-lockedOut function
-
-
+void lockedOut_check(){
+  if(lockedOut){
+    two_lineLCD("REJECTED", "Reset needed");
+    Serial.println("REJECTED \n");
+    Serial.println("Locked Out, Reset needed \n");
+    return;
+  } // once input is locked, reject all further input until reset is done
+  else {
+    uint8_t remain = MAX_ATTEMPTS - failedATTEMPTS;
+    
+    two_lineLCD("WRONG PASSWORD", "");
+    lcd.setCursor(0,1); //강제적으로 다음 줄로 넘어가게 한 뒤, two_lineLCD 함수를 사용해서는 문자열 내부에 %를 사용해 숫자를 넣을 수 없기 때문에 lcd.print() 함수를 사용해야한다.
+    lcd.print("("); lcd.print(remain); lcd.print(" chances left)");
+    
+    Serial.println("WRONG PASSWORD \n");
+    Serial.println(remain);
+    Serial.println(" chances left \n");
+    return;
+  }
+}
 
 int8_t validate(const char* input, double* out_T_proc, uint16_t* out_Seq_received){
   if (lockedOut) return -10; // if the return result is -10, it means that the user is locked out; reset is needed
