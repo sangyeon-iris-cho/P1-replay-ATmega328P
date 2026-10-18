@@ -1,3 +1,4 @@
+아직 in progress
 /*
  * firmware_oop.ino
  *
