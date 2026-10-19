@@ -232,6 +232,8 @@ void setup(){
 
   myServo.attach(9);
   myServo.write(0);
+
+  Serial.println("MODE is hardened\n");
   Serial.println("hardened Firmware Ready. \n"); //Timer1 started
   Serial.print("The Next Sequence Number is: "); Serial.println(SeqNext);
   Serial.println("FORMAT: PASS:SEQ");
