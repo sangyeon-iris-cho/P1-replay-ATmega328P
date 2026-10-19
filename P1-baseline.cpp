@@ -8,10 +8,6 @@ LiquidCrystal lcd(12, 11, 5, 4, 3, 2); // Rs, E, D4, D5, D6, D7
 Servo myServo;
 
 const char PASSWORD[] = "123456789";
-const uint8_t MAX_ATTEMPTS = 5;
-
-uint8_t failedATTEMPTS = 0;
-bool lockedOut = false;
 
 char inputBuffer[32]; // fix the size of the input (buffer) to reduce SRAM fragmentation and to detect overflow
 uint8_t inputLength = 0;
@@ -39,27 +35,6 @@ void two_lineLCD(const char* line1, const char* line2){
   
   lcd.setCursor(0,1); // move to second line
   lcd.print(line2);
-}
-
-void lockedOut_check(){
-  if(lockedOut){
-    two_lineLCD("REJECTED", "Reset needed");
-    Serial.println("REJECTED \n");
-    Serial.println("Locked Out, Reset needed \n");
-    return;
-  } // once input is locked, reject all further input until reset is done
-  else {
-    uint8_t remain = MAX_ATTEMPTS - failedATTEMPTS;
-    
-    two_lineLCD("WRONG PASSWORD", "");
-    lcd.setCursor(0,1); //강제적으로 다음 줄로 넘어가게 한 뒤, two_lineLCD 함수를 사용해서는 문자열 내부에 %를 사용해 숫자를 넣을 수 없기 때문에 lcd.print() 함수를 사용해야한다.
-    lcd.print("("); lcd.print(remain); lcd.print(" chances left)");
-    
-    Serial.println("WRONG PASSWORD \n");
-    Serial.println(remain);
-    Serial.println(" chances left \n");
-    return;
-  }
 }
 
 void command(const char* input){  
@@ -95,10 +70,6 @@ void command(const char* input){
 	Serial.print(" micro seconds \n");
   } // baseline accepts the same password repeatedly
 	else {
-    failedATTEMPTS++;
-    if(failedATTEMPTS >= MAX_ATTEMPTS) lockedOut = true;
-	lockedOut_check();
-
 	Serial.print("T_proc: ");
 	Serial.print(T_proc);
 	Serial.print(" micro seconds \n");
