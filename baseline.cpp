@@ -84,7 +84,7 @@ void setup(){
   myServo.attach(9);
   myServo.write(0);
 
-  Serial.println("MODE: is baseline\n");
+  Serial.println("MODE:baseline\n");
   Serial.println("baseline Firmware Ready."); //Timer1 starts! active
   Serial.println("Please Enter the PASSWORD: ");
 }
