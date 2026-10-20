@@ -38,12 +38,6 @@ void two_lineLCD(const char* line1, const char* line2){
 }
 
 void command(const char* input){  
-  if (lockedOut){
-	  two_lineLCD("REJECTED", "Reset needed");
-	  Serial.println("REJECTED \n");
-	  Serial.println("LockedOUT mode, device is locked");
-	  return;
-  }
   uint16_t t0 = TCNT1; // start the timer t0 after the full input has been received.
   								
   bool accepted = (strcmp(input, PASSWORD) == 0); //strcmp: compare two strings - need string library, 스트링 라이브러리 없이도 할 수 있을까?
@@ -70,6 +64,8 @@ void command(const char* input){
 	Serial.print(" micro seconds \n");
   } // baseline accepts the same password repeatedly
 	else {
+	two_LCD("WRONG PASS", "TRY AGAIN");
+	Serial.print("WRONG PASSWORD, Try again");
 	Serial.print("T_proc: ");
 	Serial.print(T_proc);
 	Serial.print(" micro seconds \n");
@@ -88,7 +84,7 @@ void setup(){
   myServo.attach(9);
   myServo.write(0);
 
-  Serial.println("MODE is baseline\n");
+  Serial.println("MODE: is baseline\n");
   Serial.println("baseline Firmware Ready."); //Timer1 starts! active
   Serial.println("Please Enter the PASSWORD: ");
 }
