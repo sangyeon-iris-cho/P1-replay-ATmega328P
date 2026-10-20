@@ -3,7 +3,7 @@ import time
 import csv #to store result
 from datetime import datetime # import datetime class from the library datetime
 
-PORT   = 'COM3' #ur port
+PORT   = 'COM5' #ur port
 BAUD   = 115200
 PASS = "123456789"
 TIMEOUT = 3 #응답 대기 시간 second
