@@ -6,6 +6,7 @@ df = pd.read_csv('results.csv')
 
 normal  = df[df.type == 'normal']
 replays = df[df.type == 'replay']
+wrongpw = df[df.type == 'wrongpassword']
 brutef = df[df.type == 'bruteforce']
 
 print("----- Normal Command -----")
@@ -16,6 +17,10 @@ print("\n----- Replay Attack -----")
 rejected = replays.resp.str.contains('REJECTED').sum()
 print(f"Rejected Rate: {rejected}/{len(replays)} = {rejected/len(replays)*100:.0f}%")
 
-print("\n----- Brute Force, Wrong Password -----")
+print("\n----- Wrong Password -----")
+rejected = wrongpw.resp.str.contains('REJECTED').sum()
+print(f"Rejected Rate: {rejected}/{len(wrongpw)} = {rejected/len(wrongpw)*100:.0f}%")
+
+print("\n----- Brute Force, Wrong Password Repeated -----")
 lockedout = brutef.resp.str.contains('REJECTED-LOCKEDOUT').sum()
-print(f"Rejected Rate: {lockedout}/{len(brutef)} = {lockedout/len(brutef)*100:.0f}%")
+print(f"Locked Out Rate: {lockedout}/{len(brutef)} = {lockedout/len(brutef)*100:.0f}%")
