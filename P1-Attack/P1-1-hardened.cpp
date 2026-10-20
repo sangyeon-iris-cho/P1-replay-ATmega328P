@@ -8,7 +8,7 @@ LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 Servo myServo;
 
 const char PASS[] = "123456789";
-const uint8_t MAX_ATTEMPTS = 5;
+const uint8_t MAX_ATTEMPTS = 10;
 const uint16_t EEPROM_ADDR_SEQ = 0; //EEPROM address: 0, 1(2bytes) are used to be written / save sequence numbers inside.
 
 uint8_t failedATTEMPTS = 0;
@@ -199,6 +199,11 @@ void command(const char* input){
 	  buzz_REJECT();
       two_lineLCD("FORMAT ERROR", "Use colon between");
       Serial.println("PASSWORD'S FORMAT IS: PASSWORD:SEQ\n");
+	  failedATTEMPTS++
+	  if (failedATTEMPTS >= MAX_ATTEMPTS){
+		  lockedOut = true;
+		  buzz_lockedOut();
+	  }
     }
     else{ // result == -2 || == -3; overflow / wrong password typed
 	  buzz_REJECT();
