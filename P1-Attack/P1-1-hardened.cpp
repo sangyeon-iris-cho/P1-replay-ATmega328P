@@ -157,7 +157,7 @@ void command(const char* input){
     double T_act = tToMicros(t2, t3);
     
     two_lineLCD("ACCEPTED", "Access granted!");
-    Serial.println("ACCEPTED \nAccess granted! \n");
+    Serial.println("ACCEPTED - Access granted!");
 	Serial.print("T_proc: ");
 	Serial.print(T_proc);
   	Serial.print(" micro seconds \n");
