@@ -3,24 +3,23 @@ import time
 import csv #to store result
 from datetime import datetime # import datetime class from the library datetime
 
-PORT   = 'COM5' #ur port
+PORT   = 'COM3' #ur port
 BAUD   = 115200
 PASS = "123456789"
-TIMEOUT = 3 #응답 대기 시간 second
+TIMEOUT = 4 #응답 대기 시간 second
 FILENAME = 'results.csv'
 SEQ = 0
 
 def connect(port, baud):
     ser = serial.Serial(port, baud, timeout = TIMEOUT)
     time.sleep(2) # let the arduino sleep for a reset
-    ser.flushInput()
     print(f"successfully connected!: {port} @ {baud} baud \n")
     return ser
     #connect with serial
 
 def send_cmd(ser, cmd):
     ser.write((cmd + "\n").encode())
-    time.sleep(0.5) #send commands
+    time.sleep(TIMEOUT) #send commands
 
     response = ""
     while ser.in_waiting:
@@ -59,7 +58,10 @@ def handshake(ser):
         raise RuntimeError("Handshake with Arduino was not successful - MODE ERROR")
         return None, seq
 
-    if seq is None:
+    if mode == "baseline":
+        seq = 0
+
+    elif seq is None:
         raise RuntimeError("Handshake with Arduino was not successful - SEQ ERROR")
 
     print("HANDSHAKE RESULT\n")
@@ -111,7 +113,7 @@ def sim_normal(ser, seq_start = 0, count = 5): #normal sequence from 0 to 4
 
     return results, seq_start + count #for the next sequence number
 
-def sim_RA(ser, seq_RA):
+def sim_RA(ser, seq_RA, mode):
     print("-" * 50)
     print("Simulator2: Replay Attack")
     results = []
@@ -121,12 +123,23 @@ def sim_RA(ser, seq_RA):
     for attempt in range(5):
         print(f"\n{attempt+1} Attempts: {cmd}") #attempt starts from 0
         resp = send_cmd(ser, cmd)
+
+        accepted = "ACCEPTED" in resp
+        RA_detected = "REPLAY" in resp.upper()
+
+        if RA_detected:
+            result = "REPLAY_ATTACK_DETECTED"
+        elif accepted:
+            result = "ACCEPTED"
+        elif not resp:
+            result = "NO_RESPONSE"
+        else:
+            result = "REJECTED"
+        
         print(f"\rResponse: {resp}\n")
         t = parse_proc(resp)
         results.append({"test": "Replay_Attack", "input": cmd,
-                        "result": "REPLAY ATTACK DETECTED" if "REPLAY" in resp #hardened result
-                                    else ("ACCEPTED" if "ACCEPTED" in resp else "REJECTED"), #baseline result
-                       "T_proc_us": t})
+                        "result": result, "T_proc_us": t})
         time.sleep(1)
         
     return results
@@ -176,7 +189,7 @@ def sim_bruteforce(ser, seq):
     results = []
 
     if MODE == "hardened":
-        for i in range(7):  
+        for i in range(11):  
             cmd = f"987654321:{seq}" # tries wrong password for several times
             print(f"\n{i+1} Attempts: {cmd}")
             resp = send_cmd(ser, cmd)
@@ -184,12 +197,12 @@ def sim_bruteforce(ser, seq):
             results.append({
                 "test": "brute_force",
                 "input": cmd,
-                "result": "REJECTED-LOCKEDOUT" if "LOCK" in resp else "REJECTED",
+                "result": "REJECTED-LOCKEDOUT" if "Locked Out, Reset needed" in resp else "REJECTED",
                 "T_proc_us": None #locked out, no signals to arduino
             })
             time.sleep(1)
     else: #baseline
-        for i in range(7):  
+        for i in range(11):  
             cmd = "987654321"
             print(f"\n{i+1} Attempts: {cmd}")
             resp = send_cmd(ser, cmd)
@@ -230,5 +243,3 @@ if __name__ == "__main__":
         
     fname = f"Results_{MODE}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
     save(all_results, fname) #save all of those results in a file
-
-
