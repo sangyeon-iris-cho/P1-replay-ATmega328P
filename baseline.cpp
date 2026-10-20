@@ -1,7 +1,7 @@
 #include <LiquidCrystal.h>
 #include <Servo.h>
 #include <string.h>
-#include <avr/io.h> // used for TCNT1, TCCR1A, TCCR1B
+#include <avr/io.h> // used for TCNT1, TCCR1A, TCCR1B (timer1)
 
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2); // Rs, E, D4, D5, D6, D7
 
@@ -15,8 +15,8 @@ bool inputOverflow = false;
 
 void timer1_iv(){
 	TCCR1A = 0; // normal counter mode, not PWM
-	TCCR1B = (1 << CS10); // prescaler = 1, 분주 없음
-						// TCCR1B의 CS10 비트만 세우면 prescaler = 1
+	TCCR1B = (1 << CS10); // set the CS10 bit in TCCR1B register => prescaler = 1, prescaler isn't used
+						// the timer clock runs at the exact same frequency as the io clock, timer++ on every one clock cycle
 						// 1 tick of the Timer1 = 62.5 nanoseconds; max = 6.25 ns * 65535 = 4.096 ms
 						// enough range provided for strcmp, servo.write functions
 	TCNT1 = 0;
@@ -26,7 +26,7 @@ void timer1_iv(){
 double tToMicros(uint16_t t_start, uint16_t t_end){
 	return (uint16_t)(t_end - t_start) * 0.0625;
 } // change ns to ms; 62.5ns = 0.0625ms
-// overflow 처리: uint16_t subtraction provides automatic wrap-around
+// overflow handling: uint16_t subtraction provides automatic wrap-around
 
 void two_lineLCD(const char* line1, const char* line2){
   lcd.clear();
@@ -40,7 +40,7 @@ void two_lineLCD(const char* line1, const char* line2){
 void command(const char* input){  
   uint16_t t0 = TCNT1; // start the timer t0 after the full input has been received.
   								
-  bool accepted = (strcmp(input, PASSWORD) == 0); //strcmp: compare two strings - need string library, 스트링 라이브러리 없이도 할 수 있을까?
+  bool accepted = (strcmp(input, PASSWORD) == 0); //strcmp: compare two strings - need string library
   uint16_t t1 = TCNT1; // T_proc timer finish!
 
   double T_proc = tToMicros(t0, t1);
@@ -98,21 +98,21 @@ void loop(){
         two_lineLCD("PASSWORD too long", "Try again");
         Serial.println("PASSWORD too long, Overflow occurred \n");
 		Serial.println("Try again: ");
-      } // check overflow, if 조건문을 나가 initialize 후 while loop 다시 시작해 입력 다시 시작
+      } // check overflow, if so, exit the conditional block -> initialize -> while loop starts again, restarting the input
       else if(inputLength > 0){
         inputBuffer[inputLength] = '\0';
         command(inputBuffer);
       }
       
       inputLength = 0;
-      inputOverflow = false; // command를 호출했기 때문에 initialize, while loop로 다시 돌아가기
+      inputOverflow = false; // command called: initialize, start over the while loop
     }
     else{
       if(!inputOverflow) {
         if(inputLength < sizeof(inputBuffer) - 1){
 			inputBuffer[inputLength++] = c;  // continue writing password
 		} else {
-        inputOverflow = true; //enter를 치는 순간 오버플로우 발생했다는 오류 메세지 출력, 버퍼가 꽉 찼을 때만 true
+        inputOverflow = true; // print overflow message as soon as enter pressed, true only when buffer is full
       	}
 	  }
     }
