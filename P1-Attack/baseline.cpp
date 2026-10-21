@@ -5,7 +5,7 @@
 
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2); // Rs, E, D4, D5, D6, D7
 
-Servo myServo;
+Servo myServo; // servo object to control the servo motor
 
 const char PASSWORD[] = "123456789";
 
@@ -19,9 +19,8 @@ void timer1_iv(){
 						// the timer clock runs at the exact same frequency as the io clock, timer++ on every one clock cycle
 						// 1 tick of the Timer1 = 62.5 nanoseconds; max = 6.25 ns * 65535 = 4.096 ms
 						// enough range provided for strcmp, servo.write functions
-	TCNT1 = 0;
-} // initialize Timer1
-// use Timer1 instead of using micros() function; micros() has approximately 4 micros resolution.
+	TCNT1 = 0; // initialize Timer1
+} // use Timer1 instead of using micros() function; micros() has approximately 4 micros resolution.
 
 double tToMicros(uint16_t t_start, uint16_t t_end){
 	return (uint16_t)(t_end - t_start) * 0.0625;
@@ -47,8 +46,9 @@ void command(const char* input){
   
   if(accepted){
     uint16_t t2 = TCNT1; // start the timer for T_act
-    myServo.write(90);
-	uint16_t t3 = TCNT1; // T_act timer finished
+	  
+    myServo.write(90); // servo rotates 90 degrees
+	uint16_t t3 = TCNT1; // T_act timer finished, only printed out when PASSWORD is right
 
     double T_act = tToMicros(t2, t3);
     
