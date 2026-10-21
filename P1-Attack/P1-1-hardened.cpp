@@ -157,7 +157,7 @@ void command(const char* input){
     double T_act = tToMicros(t2, t3);
     
     two_lineLCD("ACCEPTED", "Access granted!");
-    Serial.println("ACCEPTED - Access granted!");
+    Serial.print("ACCEPTED \nAccess granted! \n");
 	Serial.print("T_proc: ");
 	Serial.print(T_proc);
   	Serial.print(" micro seconds \n");
@@ -181,7 +181,7 @@ void command(const char* input){
     Serial.print("REPLAY-ATTACK DETECTED! \n");
     Serial.print("Expected Sequence Number was: ");
     Serial.print(SeqNext);
-    Serial.print(" , while current Sequence Number is: ");
+    Serial.print(", while current Sequence Number is: ");
     Serial.println(seqReceived);
     
     Serial.print("\n\nT_proc: ");
@@ -208,6 +208,7 @@ void command(const char* input){
     else{ // result == -2 || == -3; overflow / wrong password typed
 	  buzz_REJECT();
       failedATTEMPTS++;
+	  Serial.print("WRONG PASSWORD, Try again\n");
       if(failedATTEMPTS >= MAX_ATTEMPTS){
 		  lockedOut = true;
 		  buzz_lockedOut();
