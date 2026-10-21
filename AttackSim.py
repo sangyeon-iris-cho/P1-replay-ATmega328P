@@ -3,7 +3,7 @@ import time
 import csv #to store result
 from datetime import datetime # import datetime class from the library datetime
 
-PORT   = 'COM3' #ur port
+PORT   = 'COM5' #ur port
 BAUD   = 115200
 PASS = "123456789"
 TIMEOUT = 4 #응답 대기 시간 second
@@ -230,7 +230,7 @@ if __name__ == "__main__":
         r1, SeqNext = sim_normal(ser, seq_start = seq, count = 5)
         all_results += r1
 #Simulator 2: Replay Attack
-        all_results += sim_RA(ser, seq_RA = seq) #seq was already used for the very previous command
+        all_results += sim_RA(ser, seq_RA = seq, MODE) #seq was already used for the very previous command
 # Simulator 3: Wrong Password input
         all_results += sim_wrong_input(ser, seq = SeqNext)
 #Simulator 4: Brute Force
