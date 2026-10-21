@@ -199,7 +199,7 @@ void command(const char* input){
 	  buzz_REJECT();
       two_lineLCD("FORMAT ERROR", "Use colon between");
       Serial.println("PASSWORD'S FORMAT IS: PASSWORD:SEQ\n");
-	  failedATTEMPTS++
+	  failedATTEMPTS++;
 	  if (failedATTEMPTS >= MAX_ATTEMPTS){
 		  lockedOut = true;
 		  buzz_lockedOut();
