@@ -80,7 +80,7 @@ bool parseSeq(const char* s, uint16_t* out){
 
   for(uint8_t i = 0; s[i] != '\0'; i++){
      if(s[i] < '0' || s[i] > '9') return false; // only for valid numbers, no 특수문자 or alphabets, etc within
-     if(i>5) return false; // since 65535, the max number that can be expressed for uint16_t = 2^16 - 1 is 5 digits.
+     if(i>4) return false; // since 65535, the max number that can be expressed for uint16_t = 2^16 - 1 is 5 digits.
   }
     
   long val = atol(s); // ASCII to long type variable, so no worries for overflow
@@ -118,9 +118,9 @@ int8_t validate(const char* input, double* out_T_proc, uint16_t* out_Seq_receive
   if(colon == NULL) return -1; // if there's no colon located anywhere inside the PASSWORD, the type of the password is wrong.
 
   uint8_t PWLength = colon - input; // the actual PASSWORD length
-  char PW[40];
-  if(PWLength >= sizeof(PW)) return -2; // overflow
+  if(PWLength >= sizeof(PASS)) return -2; // overflow
 
+  char PW[sizeof(PASS)];
   memcpy(PW, input, PWLength);
   PW[PWLength] = '\0';
 
@@ -138,8 +138,11 @@ int8_t validate(const char* input, double* out_T_proc, uint16_t* out_Seq_receive
   *out_T_proc = tToMicros(t0, t1); // T_proc calculation
 
   if(!PWOK) return -3; // wrong PASSWORD
-  if(!SeqOK) return -100; // replay-attack detected!
-
+  if(!SeqOK){
+	  if(seqReceived <= SeqNext) return -100; // replay-attack detected! for 
+	  else return -111; // future sequence number is used
+  }
+	
   return 0; // normal, and right password
 }
 
@@ -194,21 +197,45 @@ void command(const char* input){
 		buzz_lockedOut();
 	}
   }
-  else{
-    if(result == -1){
+  else if(result == -1){
 	  buzz_REJECT();
       two_lineLCD("FORMAT ERROR", "Use colon between");
       Serial.println("PASSWORD'S FORMAT IS: PASSWORD:SEQ\n");
+
+	  Serial.print("T_proc: ");
+      Serial.print(T_proc);
+      Serial.println(" micro seconds. \n");
+	  
 	  failedATTEMPTS++;
 	  if (failedATTEMPTS >= MAX_ATTEMPTS){
 		  lockedOut = true;
 		  buzz_lockedOut();
 	  }
     }
-    else{ // result == -2 || == -3; overflow / wrong password typed
+  else if(result == -2 || result == -3){ // overflow || wrong password typed
 	  buzz_REJECT();
       failedATTEMPTS++;
-	  Serial.print("WRONG PASSWORD, Try again\n");
+	  Serial.print("Try again\n");
+      if(failedATTEMPTS >= MAX_ATTEMPTS){
+		  lockedOut = true;
+		  buzz_lockedOut();
+	  }
+	  lockedOut_check(); // "WRONG PASSWORD" printed out here
+		
+      Serial.print("T_proc: ");
+      Serial.print(T_proc);
+      Serial.println(" micro seconds. \n");
+    }
+	else if(result == -111){ 
+	  buzz_REJECT();
+      failedATTEMPTS++;
+	  two_lineLCD("FUTURE SEQ!", "SEQ mismatch");
+      Serial.print("FUTURE SEQ IS USED! \n");
+      Serial.print("Expected Sequence Number was: ");
+      Serial.print(SeqNext);
+      Serial.print(", while current Sequence Number is: ");
+      Serial.println(seqReceived);
+		
       if(failedATTEMPTS >= MAX_ATTEMPTS){
 		  lockedOut = true;
 		  buzz_lockedOut();
@@ -218,7 +245,12 @@ void command(const char* input){
       Serial.print("T_proc: ");
       Serial.print(T_proc);
       Serial.println(" micro seconds. \n");
-    }
+	}
+	else{
+		two_lineLCD("EXCEPTION ERROR", "");
+		Serial.print("Exception Error, result = ");
+		Serial.println(result)
+	}
   }
 }
 
@@ -260,6 +292,9 @@ void loop(){
 		two_lineLCD("PASS too long", "Try again");
         Serial.println("PASSWORD too long, Overflow occurred \n");
 		Serial.println("Try again: ");
+
+		if(failedATTEMPTS < MAX_ATTEMPTS) failedATTEMPTS++;
+		if(failedATTEMPTS >= MAX_ATTEMPTS) lockedOut = true;
       }
       else if(inputLength > 0){
         inputBuffer[inputLength] = '\0';
