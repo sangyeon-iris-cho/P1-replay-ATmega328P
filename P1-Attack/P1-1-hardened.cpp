@@ -106,7 +106,7 @@ void lockedOut_check(){
     
     Serial.println("WRONG PASSWORD \n");
     Serial.println(remain);
-    Serial.println(" chances left \n");
+    Serial.println("chances left \n");
     return;
   }
 }
@@ -161,25 +161,27 @@ void command(const char* input){
     
     two_lineLCD("ACCEPTED", "Access granted!");
     Serial.print("ACCEPTED \nAccess granted! \n");
-	Serial.print("T_proc: ");
-	Serial.print(T_proc);
+	  Serial.print("T_proc: ");
+	  Serial.print(T_proc);
   	Serial.print(" micro seconds \n");
-	Serial.print("T_act: ");
-	Serial.print(T_act);
-	Serial.print(" micro seconds \n");
+	  Serial.print("T_act: ");
+	  Serial.print(T_act);
+	  Serial.print(" micro seconds \n");
 
-	Serial.print("SEQ number accepted for this input: ");
-	Serial.println(seqReceived);
+	  Serial.print("SEQ number accepted for this input: ");
+	  Serial.println(seqReceived);
 
     SeqNext++;
     EEPROMdirty = true;
+    Serial.print("SeqNext: ");
+    Serial.println(SeqNext);
   } // right password! accepted
   else if(result == -10) {
-	buzz_lockedOut();
-	lockedOut_check(); // locked out
+	  buzz_lockedOut();
+	  lockedOut_check(); // locked out
   }
   else if(result == -100){ // replay-attack detected!
-	buzz_RA();
+	  buzz_RA();
     two_lineLCD("REPLAY-ATTACK!", "SEQ mismatch");
     Serial.print("REPLAY-ATTACK DETECTED! \n");
     Serial.print("Expected Sequence Number was: ");
@@ -193,65 +195,67 @@ void command(const char* input){
 
     failedATTEMPTS++;
     if(failedATTEMPTS >= MAX_ATTEMPTS){
-		lockedOut = true;
-		buzz_lockedOut();
-	}
+		  lockedOut = true;
+		  buzz_lockedOut();
+	  }
+    lockedOut_check();
   }
   else if(result == -1){
 	  buzz_REJECT();
-      two_lineLCD("FORMAT ERROR", "Use colon between");
-      Serial.println("PASSWORD'S FORMAT IS: PASSWORD:SEQ\n");
+    two_lineLCD("FORMAT ERROR", "Use colon between");
+    Serial.println("PASSWORD'S FORMAT IS: PASSWORD:SEQ\n");
 
 	  Serial.print("T_proc: ");
-      Serial.print(T_proc);
-      Serial.println(" micro seconds. \n");
+    Serial.print(T_proc);
+    Serial.println(" micro seconds. \n");
 	  
 	  failedATTEMPTS++;
 	  if (failedATTEMPTS >= MAX_ATTEMPTS){
 		  lockedOut = true;
 		  buzz_lockedOut();
 	  }
-    }
+    lockedOut_check();
+  }
   else if(result == -2 || result == -3){ // overflow || wrong password typed
 	  buzz_REJECT();
-      failedATTEMPTS++;
+    failedATTEMPTS++;
 	  Serial.print("Try again\n");
-      if(failedATTEMPTS >= MAX_ATTEMPTS){
+
+    if(failedATTEMPTS >= MAX_ATTEMPTS){
 		  lockedOut = true;
 		  buzz_lockedOut();
 	  }
 	  lockedOut_check(); // "WRONG PASSWORD" printed out here
 		
-      Serial.print("T_proc: ");
-      Serial.print(T_proc);
-      Serial.println(" micro seconds. \n");
+    Serial.print("T_proc: ");
+    Serial.print(T_proc);
+    Serial.println(" micro seconds. \n");
     }
 	else if(result == -111){ 
 	  buzz_REJECT();
-      failedATTEMPTS++;
+    failedATTEMPTS++;
 	  two_lineLCD("FUTURE SEQ!", "SEQ mismatch");
-      Serial.print("FUTURE SEQ IS USED! \n");
-      Serial.print("Expected Sequence Number was: ");
-      Serial.print(SeqNext);
-      Serial.print(", while current Sequence Number is: ");
-      Serial.println(seqReceived);
+    Serial.print("FUTURE SEQ IS USED! \n");
+    Serial.print("Expected Sequence Number was: ");
+    Serial.print(SeqNext);
+    Serial.print(", while current Sequence Number is: ");
+    Serial.println(seqReceived);
 		
-      if(failedATTEMPTS >= MAX_ATTEMPTS){
+    if(failedATTEMPTS >= MAX_ATTEMPTS){
 		  lockedOut = true;
 		  buzz_lockedOut();
 	  }
 	  lockedOut_check();
 		
-      Serial.print("T_proc: ");
-      Serial.print(T_proc);
-      Serial.println(" micro seconds. \n");
+    Serial.print("T_proc: ");
+    Serial.print(T_proc);
+    Serial.println(" micro seconds. \n");
 	}
 	else{
 		two_lineLCD("EXCEPTION ERROR", "");
 		Serial.print("Exception Error, result = ");
-		Serial.println(result)
+		Serial.println(result);
 	}
-  }
 }
 
 
@@ -270,7 +274,7 @@ void setup(){
 
   myServo.attach(9);
   myServo.write(0);
-
+  two_lineLCD("hardened firmware", "ready! enter pw");
   Serial.println("MODE:hardened\n");
   Serial.println("hardened Firmware Ready. \n"); //Timer1 started
   Serial.print("The Next Sequence Number is: "); Serial.println(SeqNext);
@@ -289,12 +293,12 @@ void loop(){
 
     if(c == '\n'){
       if(inputOverflow){
-		two_lineLCD("PASS too long", "Try again");
+		    two_lineLCD("PASS too long", "Try again");
         Serial.println("PASSWORD too long, Overflow occurred \n");
-		Serial.println("Try again: ");
+		    Serial.println("Try again: ");
 
-		if(failedATTEMPTS < MAX_ATTEMPTS) failedATTEMPTS++;
-		if(failedATTEMPTS >= MAX_ATTEMPTS) lockedOut = true;
+		    if(failedATTEMPTS < MAX_ATTEMPTS) failedATTEMPTS++;
+		    if(failedATTEMPTS >= MAX_ATTEMPTS) lockedOut = true;
       }
       else if(inputLength > 0){
         inputBuffer[inputLength] = '\0';
@@ -312,5 +316,4 @@ void loop(){
     }
   }
 }
-
 
