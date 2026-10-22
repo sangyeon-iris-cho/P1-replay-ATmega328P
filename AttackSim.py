@@ -1,6 +1,8 @@
 import serial # installed pyserial through cmd admin prompt
 import time
 import csv #to store result
+import sys #for exiting the system when not connected
+import re
 from datetime import datetime # import datetime class from the library datetime
 
 PORT   = 'COM5' #ur port
@@ -11,10 +13,14 @@ FILENAME = 'results.csv'
 SEQ = 0
 
 def connect(port, baud):
-    ser = serial.Serial(port, baud, timeout = TIMEOUT)
-    time.sleep(2) # let the arduino sleep for a reset
-    print(f"successfully connected!: {port} @ {baud} baud \n")
-    return ser
+    try:
+        ser = serial.Serial(port, baud, timeout = TIMEOUT)
+        time.sleep(2) # let the arduino sleep for a reset
+        print(f"successfully connected!: {port} @ {baud} baud \n")
+        return ser
+    except serial.SerialException as e:
+        print(f"CONNECTION ERROR: {e}")
+        sys.exit(1)
     #connect with serial
 
 def send_cmd(ser, cmd):
@@ -32,41 +38,44 @@ def handshake(ser):
     mode = None
     seq = None
     MODE = "baseline" #default
-    dead = time.time() + 3
-    
-    while time.time() < dead:
-        if ser.in_waiting:
+    dead = time.time() + 10
+    try:
+        while time.time() < dead:
             line = ser.readline().decode(errors = "ignore").strip()
+            if not line: continue
 
+            print(f"HANDSHAKE: {line}")    
             if line.startswith("MODE:"):
-                mode = line.split(":")[1].strip()
+                mode = line.split(":", 1)[1].strip().lower()
                 MODE = mode
 
-            if line.startswith("The Next Sequence Number is:"):
-                seq = int(line.split(":")[1].strip())
+            match = re.search(r"The Next Sequence Number is: \s*(\d+)", line, re.IGNORECASE)
+            if match:
+                seq = int(match.group(1))
 
-    if mode != "baseline":
-        ser.write(b"SEQ?\n") #send a query "SEQ?" in a byte mode for the serial to interprete
-        time.sleep(0.5)
+            if mode == "baseline":
+                seq = 0
+                return mode, seq
+        
+            if mode != "baseline" and seq is not None:
+                return mode, seq
+
             
-        while ser.in_waiting:
-            line = ser.readline().decode(errors = "ignore").strip()
-            if line.startswith("SEQ:"):
-                seq = int(line.split(":")[1].strip())
+            while ser.in_waiting:
+                line = ser.readline().decode(errors = "ignore").strip()
+                if line.startswith("SEQ:"):
+                    seq = int(line.split(":")[1].strip())
 
-    if mode is None:
-        raise RuntimeError("Handshake with Arduino was not successful - MODE ERROR")
-        return None, seq
-
-    if mode == "baseline":
-        seq = 0
-
-    elif seq is None:
-        raise RuntimeError("Handshake with Arduino was not successful - SEQ ERROR")
-
-    print("HANDSHAKE RESULT\n")
-    print(f"current MODE is: {MODE} \rcurrent sequence number is: {seq}\n")
-    return MODE, seq
+        if mode is None:
+            raise RuntimeError("Handshake with Arduino was not successful - MODE ERROR")
+            return None, seq
+        elif mode != "baseline" and seq is None:
+            raise RuntimeError("Handshake with Arduino was not successful - SEQ ERROR")
+        raise RuntimeError("Exception Error")
+        
+        print("HANDSHAKE RESULT\n")
+        print(f"current MODE is: {MODE} \rcurrent sequence number is: {seq}\n")
+        return MODE, seq
 
 def finalpass(pw, seq):
     if MODE == "baseline":
@@ -83,6 +92,35 @@ def parse_proc(response):
                 pass
     return None
 
+def classify(resp):
+    if not resp:
+        return "NO_RESPONCE"
+
+    u = resp.upper()
+    if "LOCK" in u: return "LOCKEDOUT"
+    if "REPLAY" in u: return "REPLAY-ATTACK!"
+    if "FORMAT IS" in u: return "WRONG_FORMAT"
+    if "WRONG PASSWORD" in u or "REJECTED" in u:
+        return "REJECTED"
+    if "FUTURE SEQ" in u: return "FUTURE_SEQ"
+    if "EXCEPTION ERROR" in u: return "EXCEPTION_ERROR"
+    if "ACCEPTED" in u: return "ACCEPTED"
+
+def reset(ser):
+    print("\n\nRESETTING ARDUINO")
+    ser.reset_input_buffer() #remove the rest of the previous simulator results, inputs
+    ser.dtr = False
+    time.sleep(0.1)
+    ser.dtr = True #reset the arduino by toggling the DTR
+    
+    time.sleep(2) #for booting and preparing for the initialization
+
+    print(f"RESET COMPLETED! MODE: {mode}, SEQ: {seq}")
+
+
+def reset_and_handshake(ser):
+    reset_board(ser)
+    return handshake(ser)
 
 def save(results, filename):
     with open(filename, "w", newline = "") as f:
@@ -98,22 +136,33 @@ def sim_normal(ser, seq_start = 0, count = 5): #normal sequence from 0 to 4
     print("-" * 50)
     print("Sim1: Normal Login Test")
     results = []
+    seq = seq_start
+    
     for i in range(count):
         seq = seq_start + i
         cmd = finalpass(PASS, seq)
+        print(f"\n{i+1} Attempt")
         print(f"\nSent: {cmd}")
         resp = send_cmd(ser, cmd)
         print(f"\rReceived: {resp}\n")
 
         t = parse_proc(resp)
         results.append({"test": "normal_login", "input": cmd,
-                        "result": "ACCEPTED" if "ACCEPTED" in resp else "REJECTED",
-                        "T_proc_us": t})
+                        "result": classify(resp), "T_proc_us": t})
+
+        if classify(resp) == "ACCEPTED":
+            if seq == 65535:
+                print("WARNING: Sequence number reached to Max")
+                break
+            seq = (seq + 1) % 65536 #for the next sequence number, only when this message is valid
+        else:
+            print("WARNING: Sequence number is unknown.")
+            break
         time.sleep(1)
 
-    return results, seq_start + count #for the next sequence number
-
-def sim_RA(ser, seq_RA, mode):
+    return results, seq 
+    
+def sim_RA(ser, seq_RA):
     print("-" * 50)
     print("Simulator2: Replay Attack")
     results = []
@@ -124,22 +173,10 @@ def sim_RA(ser, seq_RA, mode):
         print(f"\n{attempt+1} Attempts: {cmd}") #attempt starts from 0
         resp = send_cmd(ser, cmd)
 
-        accepted = "ACCEPTED" in resp
-        RA_detected = "REPLAY" in resp.upper()
-
-        if RA_detected:
-            result = "REPLAY_ATTACK_DETECTED"
-        elif accepted:
-            result = "ACCEPTED"
-        elif not resp:
-            result = "NO_RESPONSE"
-        else:
-            result = "REJECTED"
-        
         print(f"\rResponse: {resp}\n")
         t = parse_proc(resp)
         results.append({"test": "Replay_Attack", "input": cmd,
-                        "result": result, "T_proc_us": t})
+                        "result": classify(resp), "T_proc_us": t})
         time.sleep(1)
         
     return results
@@ -176,9 +213,7 @@ def sim_wrong_input(ser, seq):
         results.append({
             "test": "wrong_password_input",
             "input": cmd,
-            "result": resp.splitlines()[0] if resp else "NO_RESPONSE",
-            "T_proc_us": t
-        })
+            "result": classify(resp), "T_proc_us": t})
         time.sleep(1)
         
     return results
@@ -197,10 +232,9 @@ def sim_bruteforce(ser, seq):
             results.append({
                 "test": "brute_force",
                 "input": cmd,
-                "result": "REJECTED-LOCKEDOUT" if "Locked Out, Reset needed" in resp else "REJECTED",
-                "T_proc_us": None #locked out, no signals to arduino
-            })
+                "result": classify(resp), "T_proc_us": None}) #locked out, no signals to arduino
             time.sleep(1)
+            
     else: #baseline
         for i in range(11):  
             cmd = "987654321"
@@ -210,8 +244,7 @@ def sim_bruteforce(ser, seq):
             results.append({
                 "test": "brute_force",
                 "input": cmd,
-                "result": "REJECTED-LOCKEDOUT" if "LOCK" in resp else "REJECTED",
-                "T_proc_us": parse_proc(resp) #locked out, no signals to arduino
+                "result": classify(resp), "T_proc_us": parse_proc(resp)
             })
             time.sleep(1)
 
@@ -230,11 +263,19 @@ if __name__ == "__main__":
         r1, SeqNext = sim_normal(ser, seq_start = seq, count = 5)
         all_results += r1
 #Simulator 2: Replay Attack
-        all_results += sim_RA(ser, seq_RA = seq, MODE) #seq was already used for the very previous command
+        all_results += sim_RA(ser, seq_RA = seq) #seq was already used for the very previous command
+        
+        MODE, seq = handshake(ser)
 # Simulator 3: Wrong Password input
         all_results += sim_wrong_input(ser, seq = SeqNext)
+
+        
+        MODE, seq = handshake(ser)
 #Simulator 4: Brute Force
         all_results += sim_bruteforce(ser, seq = SeqNext)
+
+    except(RuntimeError, serial.SerialException) as e:
+        print(f"Exception Error: {e}")
 
     finally:
         ser.close()
