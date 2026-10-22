@@ -64,7 +64,7 @@ void command(const char* input){
 	Serial.print(" micro seconds \n");
   } // baseline accepts the same password repeatedly
 	else {
-	two_LCD("WRONG PASS", "TRY AGAIN");
+	two_lineLCD("WRONG PASS", "TRY AGAIN");
 	Serial.print("WRONG PASSWORD, Try again");
 	Serial.print("T_proc: ");
 	Serial.print(T_proc);
