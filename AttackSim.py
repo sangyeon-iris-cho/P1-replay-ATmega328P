@@ -35,6 +35,7 @@ def send_cmd(ser, cmd):
 
 def handshake(ser):
     global MODE
+    MODE = None
     mode = None
     seq = None
     MODE = "baseline" #default
@@ -48,34 +49,26 @@ def handshake(ser):
         if line.startswith("MODE:"):
             mode = line.split(":", 1)[1].strip().lower()
             MODE = mode
+            if mode == "baseline":
+                        seq = 0
+                        return mode, seq
+            if mode != "baseline" and seq is not None:
+                        return mode, seq
 
         match = re.search(r"The Next Sequence Number is: \s*(\d+)", line, re.IGNORECASE)
         if match:
             seq = int(match.group(1))
 
-        if mode == "baseline":
-            seq = 0
-            return mode, seq
-        
         if mode != "baseline" and seq is not None:
+            print("HANDSHAKE RESULT\n")
+            print(f"current MODE is: {MODE} \rcurrent sequence number is: {seq}\n")
             return mode, seq
-
-            
-        while ser.in_waiting:
-            line = ser.readline().decode(errors = "ignore").strip()
-            if line.startswith("SEQ:"):
-               seq = int(line.split(":")[1].strip())
 
     if mode is None:
         raise RuntimeError("Handshake with Arduino was not successful - MODE ERROR")
-        return None, seq
     elif mode != "baseline" and seq is None:
         raise RuntimeError("Handshake with Arduino was not successful - SEQ ERROR")
     raise RuntimeError("Exception Error")
-        
-    print("HANDSHAKE RESULT\n")
-    print(f"current MODE is: {MODE} \rcurrent sequence number is: {seq}\n")
-    return MODE, seq
 
 def finalpass(pw, seq):
     if MODE == "baseline":
@@ -105,6 +98,7 @@ def classify(resp):
     if "FUTURE SEQ" in u: return "FUTURE_SEQ"
     if "EXCEPTION ERROR" in u: return "EXCEPTION_ERROR"
     if "ACCEPTED" in u: return "ACCEPTED"
+    if "" in u: return "BLANK"
 
 def reset(ser):
     print("\n\nRESETTING ARDUINO")
@@ -115,12 +109,9 @@ def reset(ser):
     
     time.sleep(2) #for booting and preparing for the initialization
 
+    mode, seq = handshake(ser)
     print(f"RESET COMPLETED! MODE: {mode}, SEQ: {seq}")
-
-
-def reset_and_handshake(ser):
-    reset_board(ser)
-    return handshake(ser)
+    return mode, seq
 
 def save(results, filename):
     with open(filename, "w", newline = "") as f:
@@ -264,13 +255,13 @@ if __name__ == "__main__":
         all_results += r1
 #Simulator 2: Replay Attack
         all_results += sim_RA(ser, seq_RA = seq) #seq was already used for the very previous command
-        
-        MODE, seq = handshake(ser)
+
+        MODE, seq = reset(ser)
 # Simulator 3: Wrong Password input
         all_results += sim_wrong_input(ser, seq = SeqNext)
 
         
-        MODE, seq = handshake(ser)
+        MODE, seq = reset(ser)
 #Simulator 4: Brute Force
         all_results += sim_bruteforce(ser, seq = SeqNext)
 
