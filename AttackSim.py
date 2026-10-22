@@ -8,7 +8,7 @@ from datetime import datetime # import datetime class from the library datetime
 PORT   = 'COM5' #ur port
 BAUD   = 115200
 PASS = "123456789"
-TIMEOUT = 4 #응답 대기 시간 second
+TIMEOUT = 4 #waiting for response[second]
 FILENAME = 'results.csv'
 SEQ = 0
 
