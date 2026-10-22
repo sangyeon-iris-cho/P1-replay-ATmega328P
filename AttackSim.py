@@ -39,43 +39,43 @@ def handshake(ser):
     seq = None
     MODE = "baseline" #default
     dead = time.time() + 10
-    try:
-        while time.time() < dead:
-            line = ser.readline().decode(errors = "ignore").strip()
-            if not line: continue
+    
+    while time.time() < dead:
+        line = ser.readline().decode(errors = "ignore").strip()
+        if not line: continue
 
-            print(f"HANDSHAKE: {line}")    
-            if line.startswith("MODE:"):
-                mode = line.split(":", 1)[1].strip().lower()
-                MODE = mode
+        print(f"HANDSHAKE: {line}")    
+        if line.startswith("MODE:"):
+            mode = line.split(":", 1)[1].strip().lower()
+            MODE = mode
 
-            match = re.search(r"The Next Sequence Number is: \s*(\d+)", line, re.IGNORECASE)
-            if match:
-                seq = int(match.group(1))
+        match = re.search(r"The Next Sequence Number is: \s*(\d+)", line, re.IGNORECASE)
+        if match:
+            seq = int(match.group(1))
 
-            if mode == "baseline":
-                seq = 0
-                return mode, seq
+        if mode == "baseline":
+            seq = 0
+            return mode, seq
         
-            if mode != "baseline" and seq is not None:
-                return mode, seq
+        if mode != "baseline" and seq is not None:
+            return mode, seq
 
             
-            while ser.in_waiting:
-                line = ser.readline().decode(errors = "ignore").strip()
-                if line.startswith("SEQ:"):
-                    seq = int(line.split(":")[1].strip())
+        while ser.in_waiting:
+            line = ser.readline().decode(errors = "ignore").strip()
+            if line.startswith("SEQ:"):
+               seq = int(line.split(":")[1].strip())
 
-        if mode is None:
-            raise RuntimeError("Handshake with Arduino was not successful - MODE ERROR")
-            return None, seq
-        elif mode != "baseline" and seq is None:
-            raise RuntimeError("Handshake with Arduino was not successful - SEQ ERROR")
-        raise RuntimeError("Exception Error")
+    if mode is None:
+        raise RuntimeError("Handshake with Arduino was not successful - MODE ERROR")
+        return None, seq
+    elif mode != "baseline" and seq is None:
+        raise RuntimeError("Handshake with Arduino was not successful - SEQ ERROR")
+    raise RuntimeError("Exception Error")
         
-        print("HANDSHAKE RESULT\n")
-        print(f"current MODE is: {MODE} \rcurrent sequence number is: {seq}\n")
-        return MODE, seq
+    print("HANDSHAKE RESULT\n")
+    print(f"current MODE is: {MODE} \rcurrent sequence number is: {seq}\n")
+    return MODE, seq
 
 def finalpass(pw, seq):
     if MODE == "baseline":
@@ -284,3 +284,4 @@ if __name__ == "__main__":
         
     fname = f"Results_{MODE}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
     save(all_results, fname) #save all of those results in a file
+ 
